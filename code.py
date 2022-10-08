@@ -2,7 +2,6 @@ import board
 import busio
 import time
 from digitalio import DigitalInOut, Direction, Pull
-import neopixel
 from adafruit_debouncer import Debouncer
 import usb_hid
 from adafruit_hid.keyboard import Keyboard
@@ -14,39 +13,16 @@ from adafruit_ht16k33 import segments
 
 version = "1.1"
 # Make this false for a left-handed keyboard
-RIGHT_HANDED = True
-
-class Col:
-    
-    RED = (255, 0, 0)
-    YELLOW = (255, 150, 0)
-    GREEN = (0, 255, 0)
-    CYAN = (0, 255, 255)
-    BLUE = (0, 0, 255)
-    MAGENTA = (255, 0, 255)
-    WHITE = (255, 255, 255)
-    BLACK = (0, 0, 0)
-    GREY = (10, 10, 10)
-    VIOLET = (127,0,155)
-    INDIGO = (75,0,130)
-    ORANGE = (255,165,0)
-       
-    values=(RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN, GREY, WHITE)
-    
-    names={ RED:"Red", YELLOW:"Yellow", GREEN:"Green", CYAN:"Cyan",
-            BLUE:"Blue", MAGENTA:"Magenta", WHITE:"White",BLACK:"Black",
-            GREY:"Grey",VIOLET:"Violet",INDIGO:"Indigo",ORANGE:"Orange"}
+RIGHT_HANDED = False
 
 class Switch:
-    def __init__(self, pin, pixel, bit)  :
+    def __init__(self, pin, bit)  :
         self.pin = pin
-        self.pixel = pixel
         self.bit = bit
 
 class Key():
     def __init__(self, keyboard, switch): 
         self.keyboard = keyboard
-        self.pixel = switch.pixel
         self.bit = switch.bit
         # make a digital io from the pin
         io = DigitalInOut(switch.pin)
@@ -56,9 +32,6 @@ class Key():
         self.debounce = Debouncer(io,interval=0.01)
         self.debounce.update()
         self.pressed = not self.debounce.value
-        self.down_col=Col.RED
-        self.up_col=Col.BLUE
-        self.guide_key_col=Col.GREY
         self.guide_key=False
 
     def update(self):
@@ -68,17 +41,7 @@ class Key():
             self.key_down()
         if debounce.rose:
             self.key_up()
-        if(self.pressed):
-            col = self.down_col
-        else:
-            if self.guide_key:
-                col = self.guide_key_col
-            else:
-                col = self.up_col
-        self.set_col(col)
-            
-    def set_col(self,col):
-        keyboard.pixels[self.pixel] = col
+           
             
     def key_down(self):
         keyboard = self.keyboard
@@ -130,8 +93,7 @@ class HelpProcessor(Processor):
     def start(self):
         print("Start help")
         self.keys.set_keyboard_state(PicoChord.LOWER_CASE_KEYS)
-        self.keys.clear_all_keys()
-        self.keys.pixels.show()        
+        self.keys.clear_all_keys()    
         self.keys.scroll_text("Printing help. Hold any key to stop")
         self.mode=PicoChord.HELP_MODE
         time.sleep(2.0) 
@@ -157,7 +119,7 @@ class HelpProcessor(Processor):
                 self.keys.clear_all_keys()
                 self.keys.clear_keyboard_guides()
                 self.keys.start_mode(PicoChord.TEXT_MODE)
-                self.keys.pixels.show()        
+              
 
 class GameProcessor(Processor):
 
@@ -190,8 +152,7 @@ class GameProcessor(Processor):
     def start(self):
         print("Start game")
         self.keys.set_keyboard_state(PicoChord.LOWER_CASE_KEYS)
-        self.keys.clear_all_keys()
-        self.keys.pixels.show()        
+        self.keys.clear_all_keys()     
         self.keys.scroll_text("Game starting.....")
         time.sleep(2.0)
         self.keys.mode=PicoChord.GAME_MODE
@@ -237,17 +198,9 @@ class PicoChord:
     NUMBER_KEYS=2
     SYMBOL_KEYS=3
 
-    keyboard_state_cols = {
-        UPPER_CASE_KEYS:Col.YELLOW,
-        LOWER_CASE_KEYS:Col.BLUE,
-        NUMBER_KEYS:Col.GREEN,
-        SYMBOL_KEYS:Col.MAGENTA}
-
+    
     def set_keyboard_state(self,state):
         self.keyboard_state = state
-        new_state_col = PicoChord.keyboard_state_cols[self.keyboard_state]
-        for key in self.keys:
-            key.up_col = new_state_col 
         return
         
     def get_keyboard_col(self):
@@ -335,12 +288,6 @@ class PicoChord:
         for key in self.keys:
             key.guide_key=False
 
-    def clear_all_keys(self):
-        for key in self.keys:
-            col = PicoChord.keyboard_state_cols[self.keyboard_state]
-            key.set_col(col)
-        self.pixels.show()
-
     def get_key_bits(self):
         if RIGHT_HANDED:
             bits = (1,2,4,8,16,32)
@@ -357,7 +304,6 @@ class PicoChord:
         pos = 0
         for bit in self.get_key_bits():
             key = self.keys[pos]
-            key.up_col = up_col
             if (char_bits & bit) == 0:
                 key.guide_key = False
             else:
@@ -368,22 +314,15 @@ class PicoChord:
         ch = char_def[0]
         char_bits = char_def[1]
         char_state = char_def[2]
-        up_col = self.keyboard_state_cols[char_state]
         pos = 0
         for bit in self.get_key_bits():
             key = self.keys[pos]
-            key.up_col = up_col
-            if (char_bits & bit) == 0:
-                key.set_col(key.up_col)
-            else:
-                key.set_col(col)
-            pos = pos + 1
 
-    def display_char_on_keyboard(self,ch, pressed_col):
+    def display_char_on_keyboard(self,ch):
         char_def = self.lookup_character(ch)
         if char_def != None:
             print('Displaying:',char_def)
-            self.display_keypress(char_def, pressed_col)
+            self.display_keypress(char_def)
         
     def send_animated_text_to_keyboard(self,text):
         old_state = self.keyboard_state
