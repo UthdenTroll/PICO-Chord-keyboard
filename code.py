@@ -9,7 +9,7 @@ from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_uk import KeyboardLayoutUK
 
 from adafruit_hid.keycode import Keycode
-from adafruit_ht16k33 import segments
+from Adafruit-ST7735-Library import adafruit_7789
 
 version = "1.1"
 # Make this false for a left-handed keyboard
@@ -464,14 +464,9 @@ class PicoChord:
         self.print_decode("Symbols", self.sym_decode) 
         self.print_control("Control",self.command_actions)
 
-    def __init__(self,i2c_sda,i2c_scl,pixel_pin,key_switches):
+    def __init__(self,i2c_sda,i2c_scl,key_switches):
         hello_message = "PICO Chord " + str(version)
         print(hello_message)
-        self.key_down_col = Col.RED
-        # start the pixels and turn them all black
-        self.pixels = neopixel.NeoPixel(pixel_pin,6,auto_write=False)
-        self.pixels.fill(Col.BLUE)
-        self.pixels.show()
         #
         self.usb_kbd = Keyboard(usb_hid.devices)
         # Set the required keyboard layout
